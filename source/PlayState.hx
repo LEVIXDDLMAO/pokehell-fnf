@@ -200,6 +200,7 @@ class PlayState extends MusicBeatState
 	public var combo:Int = 0;
 	public var highestcombo:Int = 0;
 
+	public var perfects:Int = 0;
 	public var awesomes:Int = 0;
 	public var sicks:Int = 0;
 	public var goods:Int = 0;
@@ -316,6 +317,9 @@ class PlayState extends MusicBeatState
 	var averageMs:Float = 0;
 	var ranking:String = 'N/A';
 	public static var soundPrefix:Null<String> = '';
+
+	var msTimeTxt:FlxText;
+	var msTimeTxtTween:FlxTween;
 
 	public static var campaignScore:Int = 0;
 	public static var campaignMisses:Int = 0;
@@ -614,7 +618,7 @@ class PlayState extends MusicBeatState
 				add(bg);
 
 			case 'creepyhouse': //Secret Week 1: Denis
-				var bg:BGSprite = new BGSprite('cursedHouse', -400, -180, 0.8, 0.8);
+				var bg:BGSprite = new BGSprite('cursedHouse', -600, -180, 0.8, 0.8);
 				add(bg);
 			
 			case 'sytrus': //Secret Week 1: Denis
@@ -1625,6 +1629,7 @@ class PlayState extends MusicBeatState
 			'Song Score: '+ songScore +
 			'\nCurrent Combo: '+ combo +
 			'\nHighest combo: '+ highestcombo +
+			'\nPerfects: '+ perfects +
 			'\nAwesomes: '+ awesomes +
 			'\nNices: '+ sicks +
 			'\nCools: ' + goods +
@@ -1760,6 +1765,13 @@ class PlayState extends MusicBeatState
 		add(timeBarBG);
 		add(timeTxt);
 
+		msTimeTxt = new FlxText(0, 0, 400, "", 32);
+		msTimeTxt.setFormat(Paths.font('righteous.ttf'), 32, uiColor, CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+		msTimeTxt.scrollFactor.set(1, 1);
+		msTimeTxt.alpha = 1;
+		msTimeTxt.visible = true;
+		msTimeTxt.borderSize = 2;
+		add(msTimeTxt);
 
 		strumLineNotes = new FlxTypedGroup<StrumNote>();
 		add(strumLineNotes);
@@ -2428,6 +2440,7 @@ class PlayState extends MusicBeatState
 			setOnLuas('startedCountdown', true);
 
 			var swagCounter:Int = 0;
+
 
 			startTimer = new FlxTimer().start(Conductor.crochet / 1000, function(tmr:FlxTimer)
 			{
@@ -3273,6 +3286,10 @@ class PlayState extends MusicBeatState
 			case 'cursedhouse':
 				gf.visible = false;
 				boyfriend.visible = false;
+			case 'ally':
+				if (SONG.song.toLowerCase() == 'headache' && ClientPrefs.sourceModcharts){
+					
+				}
 			case 'road':
 				if (SONG.song.toLowerCase() == 'bling-blunkin' && ClientPrefs.sourceModcharts){
 					if (curBeat == 812){
@@ -3514,6 +3531,7 @@ class PlayState extends MusicBeatState
 		scoretable.text = 'Song Score: '+ songScore +
 		'\nCurrent Combo: '+ combo +
 		'\nHighest combo: '+ highestcombo +
+		'\nPerfects: '+ perfects +
 		'\nAwesomes: '+ awesomes +
 		'\nNices: '+ sicks +
 		'\nCools: ' + goods +
@@ -5246,6 +5264,14 @@ class PlayState extends MusicBeatState
 		var noteDiff:Float = Math.abs(note.strumTime - Conductor.songPosition + 8);
 		allNotesMs += noteDiff;
 		averageMs = allNotesMs/songHits;
+		msTimeTxt.alpha = 1;
+		msTimeTxt.text =Std.string(Math.round(noteDiff)) + "ms";
+		if (msTimeTxtTween != null){
+			msTimeTxtTween.cancel(); msTimeTxtTween.destroy(); // top 10 awesome code
+		}
+		msTimeTxtTween = FlxTween.tween(msTimeTxt, {alpha: 0}, 0.25, {
+			onComplete: function(tw:FlxTween) {msTimeTxtTween = null;}, startDelay: 0.7
+		});
 		//trace(noteDiff, ' ' + Math.abs(note.strumTime - Conductor.songPosition));
 
 		// boyfriend.playAnim('hey');
@@ -5259,12 +5285,13 @@ class PlayState extends MusicBeatState
 		//
 		var daRating:String;
 		var rating:FlxSprite = new FlxSprite();
-		var score:Int = 350;
+		rating.cameras = [(ClientPrefs.lockrating ? camHUD : camGame)];
+		var score:Int = 450;
 
 		if (!ClientPrefs.newInput){
 		
 
-		daRating = "awesome";
+		daRating = "perfect";
 
 		if (noteDiff > Conductor.safeZoneOffset * 0.75)
 		{
@@ -5291,11 +5318,18 @@ class PlayState extends MusicBeatState
 			score = 350;
 			sicks++;
 		}
-
-		if(daRating == 'awesome')
+		else if (noteDiff > Conductor.safeZoneOffset * 0.05)
 		{
 			spawnNoteSplashOnNote(note);
+			daRating = 'awesome';
+			score = 400;
 			awesomes++;
+		}
+
+		if(daRating == 'perfect')
+		{
+			spawnNoteSplashOnNote(note);
+			perfects++;
 		}
 		}else{
 			daRating = Conductor.judgeNote(note, noteDiff);
@@ -5323,11 +5357,18 @@ class PlayState extends MusicBeatState
 					score = 350;
 					sicks++;
 				}
-		
-				if(daRating == 'awesome')
+				else if (daRating == 'awesome')
 				{
 					spawnNoteSplashOnNote(note);
+					daRating = 'awesome';
+					score = 400;
 					awesomes++;
+				}
+		
+				if(daRating == 'perfect')
+				{
+					spawnNoteSplashOnNote(note);
+					perfects++;
 				}
 		}
 
@@ -5381,9 +5422,14 @@ class PlayState extends MusicBeatState
 		comboSpr.acceleration.y = 600;
 		comboSpr.velocity.y -= 150;
 		comboSpr.visible = !ClientPrefs.hideHud;
+		comboSpr.cameras = [(ClientPrefs.lockrating ? camHUD : camGame)];
+
+		msTimeTxt.x = comboSpr.x+100;
+		msTimeTxt.y = comboSpr.y-50;
+		msTimeTxt.cameras = [(ClientPrefs.lockrating ? camHUD : camGame)];
 
 		comboSpr.velocity.x += FlxG.random.int(1, 10);
-		//add(comboSpr);
+		add(comboSpr);
 		add(rating);
 
 		if (!PlayState.isPixelStage)
@@ -5418,6 +5464,7 @@ class PlayState extends MusicBeatState
 			numScore.screenCenter();
 			numScore.x = coolText.x + (43 * daLoop) - 90;
 			numScore.y += 80;
+			numScore.cameras = [(ClientPrefs.lockrating ? camHUD : camGame)];
 
 			if (!PlayState.isPixelStage)
 			{
@@ -5667,7 +5714,7 @@ class PlayState extends MusicBeatState
 
 	function ghostMiss(statement:Bool = false, direction:Int = 0, ?ghostMiss:Bool = false) {
 		if (statement) {
-			GameOverSubstate.deathReason = 'Died by missing notes.';
+			GameOverSubstate.deathReason = 'Died by spamming.';
 			noteMissPress(direction, ghostMiss);
 			callOnLuas('noteMissPress', [direction]);
 		}
@@ -6783,7 +6830,7 @@ class PlayState extends MusicBeatState
 			}
 
 			ratingFC = "";
-			if (awesomes > 0) ratingFC = "AFC"; //You'll never get an AFC on a song but you could try anyway
+			if (awesomes > 0 || perfects > 0) ratingFC = "AFC"; //You'll never get an AFC on a song but you could try anyway
 			if (sicks > 0) ratingFC = "SFC";
 			if (goods > 0) ratingFC = "GFC";
 			if (bads > 0 || shits > 0) ratingFC = "FC";
